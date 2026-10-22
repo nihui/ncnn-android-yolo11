@@ -37,7 +37,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
     public static final int REQUEST_CAMERA = 100;
 
     private YOLO11Ncnn yolo11ncnn = new YOLO11Ncnn();
-    private int facing = 0;
 
     private Spinner spinnerTask;
     private Spinner spinnerModel;
@@ -67,13 +66,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
             @Override
             public void onClick(View arg0) {
 
-                int new_facing = 1 - facing;
-
-                yolo11ncnn.closeCamera();
-
-                yolo11ncnn.openCamera(new_facing);
-
-                facing = new_facing;
+                yolo11ncnn.switchCamera();
             }
         });
 
@@ -132,6 +125,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
         });
 
         reload();
+
+        // Request once per Activity, so denial cannot loop through onResume.
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA}, REQUEST_CAMERA);
     }
 
     private void reload()
@@ -157,6 +154,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
     @Override
     public void surfaceDestroyed(SurfaceHolder holder)
     {
+        yolo11ncnn.setOutputWindow(null);
     }
 
     @Override
@@ -164,19 +162,22 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
     {
         super.onResume();
 
-        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED)
-        {
-            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA}, REQUEST_CAMERA);
-        }
+        yolo11ncnn.setCameraPermission(ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED);
+        yolo11ncnn.setCameraActive(true);
+    }
 
-        yolo11ncnn.openCamera(facing);
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)
+    {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CAMERA)
+            yolo11ncnn.setCameraPermission(ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED);
     }
 
     @Override
     public void onPause()
     {
+        yolo11ncnn.setCameraActive(false);
         super.onPause();
-
-        yolo11ncnn.closeCamera();
     }
 }
